@@ -19,9 +19,13 @@ terraform {
   }
 }
 # Configure the AWS Provider
+# AWS 설정 시작
 provider "aws" {
   region = var.region
 }
+# AWS 설정 끝
+
+# VPC 설정 시작
 resource "aws_vpc" "vpc_1" {
   cidr_block = "10.0.0.0/16"
 
@@ -62,6 +66,7 @@ resource "aws_internet_gateway" "igw_1" {
     Name = "${var.prefix}-igw-1"
   }
 }
+
 resource "aws_vpc_endpoint" "s3_endpoint" {
   vpc_id          = aws_vpc.vpc_1.id
   service_name    = "com.amazonaws.${var.region}.s3"
@@ -81,7 +86,6 @@ resource "aws_route_table" "rt_1" {
   }
 }
 
-
 resource "aws_route_table_association" "association_1" {
   subnet_id      = aws_subnet.subnet_1.id
   route_table_id = aws_route_table.rt_1.id
@@ -93,7 +97,6 @@ resource "aws_route_table_association" "association_2" {
 }
 
 resource "aws_security_group" "sg_1" {
-  name = "${var.prefix}-sg-1"
   ingress {
     from_port   = 0
     to_port     = 0
@@ -114,7 +117,19 @@ resource "aws_security_group" "sg_1" {
     Name = "${var.prefix}-sg-1"
   }
 }
+# VPC 설정 끝
 
+# Route53 설정 시작
+resource "aws_route53_zone" "vpc_1_zone" {
+  vpc {
+    vpc_id = aws_vpc.vpc_1.id
+  }
+
+  name = "vpc-1.com"
+}
+# Route53 설정 끝
+
+# EC2 설정 시작
 # Create IAM role for EC2
 resource "aws_iam_role" "ec2_role_1" {
   name = "${var.prefix}-ec2-role-1"
@@ -135,7 +150,6 @@ resource "aws_iam_role" "ec2_role_1" {
   }
   EOF
 }
-
 
 # Attach AmazonS3FullAccess policy to the EC2 role
 resource "aws_iam_role_policy_attachment" "s3_full_access" {
@@ -169,6 +183,26 @@ resource "aws_instance" "ec2_1" {
   }
 }
 
+# EC2 private ip를 도메인으로 연결
+resource "aws_route53_record" "record_ec2-1_vpc-1_com" {
+  zone_id = aws_route53_zone.vpc_1_zone.zone_id
+  name    = "ec2-1.vpc-1.com"
+  type    = "A"
+  ttl     = "300"
+  records = [aws_instance.ec2_1.private_ip]
+}
+
+# EC2 public ip를 도메인으로 연결
+resource "aws_route53_record" "domain_1_ec2_1" {
+  zone_id = var.domain_1_zone_id
+  name    = "ec2-1.${var.domain_1}"
+  type    = "A" //ip를 직접 가리키고 싶을때는 A 레코드를 사용
+  ttl     = "300"
+  records = [aws_instance.ec2_1.public_ip]
+}
+# EC2 설정 끝
+
+# S3 설정 시작
 resource "aws_s3_bucket" "bucket_1" {
   bucket = "${var.prefix}-bucket-${var.nickname}-1"
 
@@ -209,22 +243,6 @@ resource "aws_s3_bucket_public_access_block" "bucket_1_public_access_block_1" {
   restrict_public_buckets = false
 }
 
-resource "aws_route53_zone" "vpc_1_zone" {
-  vpc {
-    vpc_id = aws_vpc.vpc_1.id
-  }
-
-  name = "vpc-1.com"
-}
-
-resource "aws_route53_record" "record_ec2-1_vpc-1_com" {
-  zone_id = aws_route53_zone.vpc_1_zone.zone_id
-  name    = "ec2-1.vpc-1.com"
-  type    = "A"
-  ttl     = "300"
-  records = [aws_instance.ec2_1.private_ip]
-}
-
 resource "aws_s3_bucket" "bucket_2" {
   bucket = "${var.prefix}-bucket-${var.nickname}-2"
 
@@ -232,7 +250,10 @@ resource "aws_s3_bucket" "bucket_2" {
     Name = "${var.prefix}-bucket-${var.nickname}-2"
   }
 }
+# S3 설정 끝
 
+
+# CloudFront 설정 시작
 resource "aws_cloudfront_origin_access_control" "oac_1" {
   name                              = "oac-1"
   description                       = ""
@@ -303,7 +324,9 @@ resource "aws_s3_bucket_policy" "bucket_2_policy_1" {
 
   policy = data.aws_iam_policy_document.bucket_2_policy_1_statement.json
 }
+# CloudFront 설정 끝
 
+# RDS 설정 시작
 resource "aws_db_subnet_group" "db_subnet_group_1" {
   name       = "${var.prefix}-db-subnet-group-1"
   subnet_ids = [aws_subnet.subnet_1.id, aws_subnet.subnet_2.id]
@@ -371,7 +394,7 @@ resource "aws_db_instance" "db_1" {
   instance_class          = "db.t3.micro"
   publicly_accessible     = true
   username                = "admin"
-  password                = "lldj123414"
+  password                = var.db_password
   parameter_group_name    = aws_db_parameter_group.mariadb_parameter_group_1.name
   backup_retention_period = 0
   skip_final_snapshot     = true
@@ -383,3 +406,13 @@ resource "aws_db_instance" "db_1" {
     Name = "${var.prefix}-db-1"
   }
 }
+
+# For RDS Instance
+resource "aws_route53_record" "domain_1_db_1" {
+  zone_id = var.domain_1_zone_id
+  name    = "db-1.${var.domain_1}"
+  type    = "CNAME"
+  ttl     = "300"
+  records = [aws_db_instance.db_1.address]
+}
+# RDS 설정 끝

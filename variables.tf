@@ -12,3 +12,12 @@ variable "nickname" {
   description = "nickname"
   default     = "eticharge"
 }
+variable "domain_1_zone_id" {
+  description = "domain_1_zone_id"
+  default     = "Z02874171R5U0Y8X7004P"
+}
+
+variable "domain_1" {
+  description = "domain_1"
+  default     = "eitcharge.site"
+}
