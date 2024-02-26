@@ -67,6 +67,7 @@ resource "aws_internet_gateway" "igw_1" {
   }
 }
 
+#비용부과 되는듯
 resource "aws_vpc_endpoint" "s3_endpoint" {
   vpc_id          = aws_vpc.vpc_1.id
   service_name    = "com.amazonaws.${var.region}.s3"
@@ -97,6 +98,7 @@ resource "aws_route_table_association" "association_2" {
 }
 
 resource "aws_security_group" "sg_1" {
+  name = "${var.prefix}-sg-1"
   ingress {
     from_port   = 0
     to_port     = 0
@@ -178,6 +180,11 @@ resource "aws_instance" "ec2_1" {
   # Assign IAM role to the instance
   iam_instance_profile = aws_iam_instance_profile.instance_profile_1.name
 
+  // EBS 볼륨 추가
+  root_block_device {
+    volume_size = 16
+  }
+
   tags = {
     Name = "${var.prefix}-ec2-1"
   }
@@ -195,7 +202,7 @@ resource "aws_route53_record" "record_ec2-1_vpc-1_com" {
 # EC2 public ip를 도메인으로 연결
 resource "aws_route53_record" "domain_1_ec2_1" {
   zone_id = var.domain_1_zone_id
-  name    = "ec2-1.${var.domain_1}"
+  name    = var.domain_1
   type    = "A" //ip를 직접 가리키고 싶을때는 A 레코드를 사용
   ttl     = "300"
   records = [aws_instance.ec2_1.public_ip]
