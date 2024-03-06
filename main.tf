@@ -170,6 +170,43 @@ resource "aws_iam_instance_profile" "instance_profile_1" {
   role = aws_iam_role.ec2_role_1.name
 }
 
+locals {
+  ec2_user_data_base = <<-END_OF_FILE
+#!/bin/bash
+sudo dd if=/dev/zero of=/swapfile bs=128M count=32
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+sudo swapon -s
+sudo sh -c 'echo "/swapfile swap swap defaults 0 0" >> /etc/fstab'
+
+
+yum install python -y
+yum install pip -y
+pip install requests
+yum install socat -y
+
+yum install docker -y
+systemctl enable docker
+systemctl start docker
+
+curl -L https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
+chmod +x /usr/local/bin/docker-compose
+
+docker run \
+  --name=redis_1 \
+  --restart unless-stopped \
+  -p 6379:6379 \
+  -e TZ=Asia/Seoul \
+  -d \
+  redis
+
+yum install git -y
+
+END_OF_FILE
+}
+
+
 resource "aws_instance" "ec2_1" {
   ami                         = "ami-04b3f91ebd5bc4f6d"
   instance_type               = "t2.micro"
@@ -182,12 +219,24 @@ resource "aws_instance" "ec2_1" {
 
   // EBS 볼륨 추가
   root_block_device {
-    volume_size = 16
+    volume_type = "gp3"
+    volume_size = 32  # 볼륨 크기를 32GB로 설정
   }
 
   tags = {
     Name = "${var.prefix}-ec2-1"
   }
+
+  # User data script for ec2_1
+  user_data = <<-EOF
+${local.ec2_user_data_base}
+
+mkdir -p /docker_projects/gha
+curl -o /docker_projects/gha/zero_downtime_deploy.py https://raw.githubusercontent.com/E-IT-Charge/E-IT-Charge-Api-Server/feature/mainGHA/infraScript/zero_downtime_deploy.py
+chmod +x /docker_projects/gha/zero_downtime_deploy.py
+/docker_projects/gha/zero_downtime_deploy.py
+
+EOF
 }
 
 # EC2 private ip를 도메인으로 연결
@@ -423,3 +472,4 @@ resource "aws_route53_record" "domain_1_db_1" {
   records = [aws_db_instance.db_1.address]
 }
 # RDS 설정 끝
+
