@@ -203,6 +203,17 @@ docker run \
 
 yum install git -y
 
+docker run -d \
+    --name npm_1 \
+    -p 80:80 \
+    -p 443:443 \
+    -p 81:81 \
+    -e TZ=Asia/Seoul \
+    -v /docker_projects/npm_1/volumes/data:/data \
+    -v /docker_projects/npm_1/volumes/etc/letsencrypt:/etc/letsencrypt \
+    --restart unless-stopped \
+    jc21/nginx-proxy-manager:latest
+
 END_OF_FILE
 }
 
@@ -220,7 +231,7 @@ resource "aws_instance" "ec2_1" {
   // EBS 볼륨 추가
   root_block_device {
     volume_type = "gp3"
-    volume_size = 32  # 볼륨 크기를 32GB로 설정
+    volume_size = 30  # 볼륨 크기를 32GB로 설정
   }
 
   tags = {
@@ -231,12 +242,18 @@ resource "aws_instance" "ec2_1" {
   user_data = <<-EOF
 ${local.ec2_user_data_base}
 
+docker login ghcr.io -u ${var.docker_username} -p ${var.docker_password}
+
 mkdir -p /docker_projects/gha
 curl -o /docker_projects/gha/zero_downtime_deploy.py https://raw.githubusercontent.com/E-IT-Charge/E-IT-Charge-Api-Server/feature/mainGHA/infraScript/zero_downtime_deploy.py
 chmod +x /docker_projects/gha/zero_downtime_deploy.py
 /docker_projects/gha/zero_downtime_deploy.py
-
 EOF
+}
+
+resource "aws_eip_association" "eip_assoc" {
+  instance_id   = aws_instance.ec2_1.id
+  allocation_id = var.allocation_id
 }
 
 # EC2 private ip를 도메인으로 연결
@@ -254,7 +271,7 @@ resource "aws_route53_record" "domain_1_ec2_1" {
   name    = var.domain_1
   type    = "A" //ip를 직접 가리키고 싶을때는 A 레코드를 사용
   ttl     = "300"
-  records = [aws_instance.ec2_1.public_ip]
+  records = [var.front_end_ip]
 }
 # EC2 설정 끝
 
@@ -342,6 +359,8 @@ resource "aws_cloudfront_distribution" "cd_1" {
 
     viewer_protocol_policy = "redirect-to-https"
   }
+
+  aliases = ["eitcharge.site"]
 
   origin {
     domain_name              = aws_s3_bucket.bucket_2.bucket_regional_domain_name
