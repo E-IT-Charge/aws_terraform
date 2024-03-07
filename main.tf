@@ -244,7 +244,6 @@ ${local.ec2_user_data_base}
 
 docker login ghcr.io -u ${var.docker_username} -p ${var.docker_password}
 
-
 mkdir -p /docker_projects/everycharge
 curl -o /docker_projects/everycharge/zero_downtime_deploy.py https://raw.githubusercontent.com/E-IT-Charge/E-IT-Charge-Api-Server/feature/mainGHA/infraScript/zero_downtime_deploy.py
 chmod +x /docker_projects/everycharge/zero_downtime_deploy.py
@@ -360,7 +359,6 @@ resource "aws_cloudfront_distribution" "cd_1" {
 
     viewer_protocol_policy = "redirect-to-https"
   }
-
 
   origin {
     domain_name              = aws_s3_bucket.bucket_2.bucket_regional_domain_name
