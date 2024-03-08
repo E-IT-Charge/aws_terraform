@@ -245,7 +245,7 @@ ${local.ec2_user_data_base}
 docker login ghcr.io -u ${var.docker_username} -p ${var.docker_password}
 
 mkdir -p /docker_projects/everycharge
-curl -o /docker_projects/everycharge/zero_downtime_deploy.py https://raw.githubusercontent.com/E-IT-Charge/E-IT-Charge-Api-Server/feature/mainGHA/infraScript/zero_downtime_deploy.py
+curl -o /docker_projects/everycharge/zero_downtime_deploy.py https://raw.githubusercontent.com/E-IT-Charge/E-IT-Charge-Api-Server/main/.github/workflows/deploy.yml
 chmod +x /docker_projects/everycharge/zero_downtime_deploy.py
 /docker_projects/everycharge/zero_downtime_deploy.py
 EOF
