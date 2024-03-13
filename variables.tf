@@ -21,3 +21,7 @@ variable "domain_1" {
   description = "domain_1"
   default     = "eitcharge.site"
 }
+
+variable "allocation_id" {
+  default = "eipalloc-032dfcc97288155e2"
+}
