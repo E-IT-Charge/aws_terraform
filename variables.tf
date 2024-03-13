@@ -23,5 +23,5 @@ variable "domain_1" {
 }
 
 variable "allocation_id" {
-  default = "eipalloc-007d9034e6dd46f4b"
+  default = "eipalloc-032dfcc97288155e2"
 }
