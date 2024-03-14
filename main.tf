@@ -220,7 +220,7 @@ END_OF_FILE
 
 resource "aws_instance" "ec2_1" {
   ami                         = "ami-04b3f91ebd5bc4f6d"
-  instance_type               = "t2.micro"
+  instance_type               = "t2.small"
   subnet_id                   = aws_subnet.subnet_1.id
   vpc_security_group_ids      = [aws_security_group.sg_1.id]
   associate_public_ip_address = true
